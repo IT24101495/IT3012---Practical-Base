@@ -33,179 +33,198 @@ class ModelBasedAgent:
         self.facing = 'Up'
         self.last_action = None
         self.last_percept = None
-        
-        self.path = []  # To keep track of the path taken
 
     def sense_and_act(self, percept):
 
+        # Update internal memory
         self.last_percept = percept
+        self.visited_cells.add(self.position)
 
-        # Remember current cell
-        if self.position not in self.visited_cells:
-            self.visited_cells.add(self.position)
-            self.path.append(self.position)
+        # ------------------------------------------------
+        # IF-THEN RULES
+        # ------------------------------------------------
 
-        # If food is here, collect it
+        # IF food is here THEN stay
         if percept['food_here']:
             action = 'Stay'
 
+        # IF wall ahead AND left is visited THEN turn right
+        elif percept['wall_ahead'] and self.is_left_visited():
+            action = 'TurnRight'
+
+        # IF wall ahead AND left is a wall THEN turn right
+        elif percept['wall_ahead'] and self.is_left_wall(percept):
+            action = 'TurnRight'
+
+        # IF ahead is visited AND left is visited/wall
+        # THEN turn right
+        elif (
+            self.is_ahead_visited()
+            and (
+                self.is_left_visited()
+                or self.is_left_wall(percept)
+            )
+        ):
+            action = 'TurnRight'
+
+        # IF ahead is visited AND right is not a wall
+        # AND right is not visited THEN turn right
+        elif (
+            self.is_ahead_visited()
+            and not self.is_right_wall(percept)
+            and not self.is_right_visited()
+        ):
+            action = 'TurnRight'
+
+        # IF ahead is visited AND left is available
+        # THEN turn left
+        elif (
+            self.is_ahead_visited()
+            and not self.is_left_wall(percept)
+            and not self.is_left_visited()
+        ):
+            action = 'TurnLeft'
+
+        # IF ahead is visited AND both left/right are blocked
+        # THEN turn around
+        elif (
+            self.is_ahead_visited()
+            and (
+                self.is_left_wall(percept)
+                or self.is_left_visited()
+            )
+            and (
+                self.is_right_wall(percept)
+                or self.is_right_visited()
+            )
+        ):
+            action = 'TurnRight'
+
+        # IF wall ahead THEN turn left
+        elif percept['wall_ahead']:
+            action = 'TurnLeft'
+
+        # ELSE move forward
         else:
-            # Find valid unvisited neighboring cells
-            candidates = self.get_unvisited_neighbors(percept)
+            action = 'Forward'
 
-            if candidates:
-                # Choose the first unexplored direction
-                direction = candidates[0]
-                action = self.turn_towards(direction)
-
-            else:
-                # No unexplored cells nearby.
-                # Backtrack to the previous cell in the path
-                action = self.backtrack(percept)
-
+        # Update internal model
         self.update_state(action, percept)
 
+        # Remember last action
         self.last_action = action
 
         return action
-    
-    def backtrack(self, percept):
 
-    # If there is nowhere to backtrack to,
-    # rotate to search for another direction.
-        if len(self.path) <= 1:
-            return 'TurnRight'
+    # ------------------------------------------------
+    # CHECK WHETHER LEFT CELL HAS BEEN VISITED
+    # ------------------------------------------------
 
-    # Previous position in the exploration path
-        previous_position = self.path[-2]
-
-        x, y = self.position
-        px, py = previous_position
-
-    # Determine which direction leads back
-        if px == x and py == y + 1:
-            direction = 'Up'
-
-        elif px == x and py == y - 1:
-            direction = 'Down'
-
-        elif px == x - 1 and py == y:
-            direction = 'Left'
-
-        elif px == x + 1 and py == y:
-            direction = 'Right'
-
-        else:
-            return 'TurnRight'
-
-        return self.turn_towards(direction)
-
-    def get_unvisited_neighbors(self, percept):
+    def is_left_visited(self):
 
         x, y = self.position
 
-        neighbors = []
-
-        # Prefer directions based on current orientation
         if self.facing == 'Up':
-            directions = [
-                ('Left',  (x - 1, y), percept['wall_left']),
-                ('Up',    (x, y + 1), percept['wall_up']),
-                ('Right', (x + 1, y), percept['wall_right']),
-                ('Down',  (x, y - 1), percept['wall_down'])
-            ]
-
-        elif self.facing == 'Right':
-            directions = [
-                ('Up',    (x, y + 1), percept['wall_up']),
-                ('Right', (x + 1, y), percept['wall_right']),
-                ('Down',  (x, y - 1), percept['wall_down']),
-                ('Left',  (x - 1, y), percept['wall_left'])
-            ]
-
-        elif self.facing == 'Down':
-            directions = [
-                ('Right', (x + 1, y), percept['wall_right']),
-                ('Down',  (x, y - 1), percept['wall_down']),
-                ('Left',  (x - 1, y), percept['wall_left']),
-                ('Up',    (x, y + 1), percept['wall_up'])
-            ]
-
-        else:  # Left
-            directions = [
-                ('Down',  (x, y - 1), percept['wall_down']),
-                ('Left',  (x - 1, y), percept['wall_left']),
-                ('Up',    (x, y + 1), percept['wall_up']),
-                ('Right', (x + 1, y), percept['wall_right'])
-            ]
-
-        for direction, position, blocked in directions:
-
-            # Ignore walls
-            if blocked:
-                continue
-
-            # Ignore already visited cells
-            if position in self.visited_cells:
-                continue
-
-            neighbors.append(direction)
-
-        return neighbors
-
-    def turn_towards(self, direction):
-
-        if direction == self.facing:
-            return 'Forward'
-
-        if self.facing == 'Up':
-
-            if direction == 'Left':
-                return 'TurnLeft'
-
-            if direction == 'Right':
-                return 'TurnRight'
-
-            if direction == 'Down':
-                return 'TurnRight'
-
-        elif self.facing == 'Right':
-
-            if direction == 'Up':
-                return 'TurnLeft'
-
-            if direction == 'Down':
-                return 'TurnRight'
-
-            if direction == 'Left':
-                return 'TurnRight'
-
-        elif self.facing == 'Down':
-
-            if direction == 'Right':
-                return 'TurnLeft'
-
-            if direction == 'Left':
-                return 'TurnRight'
-
-            if direction == 'Up':
-                return 'TurnRight'
+            left_position = (x - 1, y)
 
         elif self.facing == 'Left':
+            left_position = (x, y - 1)
 
-            if direction == 'Down':
-                return 'TurnLeft'
+        elif self.facing == 'Down':
+            left_position = (x + 1, y)
 
-            if direction == 'Up':
-                return 'TurnRight'
+        else:  # Right
+            left_position = (x, y + 1)
 
-            if direction == 'Right':
-                return 'TurnRight'
+        return left_position in self.visited_cells
 
-        return 'TurnRight'
+    # ------------------------------------------------
+    # CHECK WHETHER RIGHT CELL HAS BEEN VISITED
+    # ------------------------------------------------
+
+    def is_right_visited(self):
+
+        x, y = self.position
+
+        if self.facing == 'Up':
+            right_position = (x + 1, y)
+
+        elif self.facing == 'Right':
+            right_position = (x, y - 1)
+
+        elif self.facing == 'Down':
+            right_position = (x - 1, y)
+
+        else:  # Left
+            right_position = (x, y + 1)
+
+        return right_position in self.visited_cells
+
+    # ------------------------------------------------
+    # CHECK WHETHER LEFT IS A WALL
+    # ------------------------------------------------
+
+    def is_left_wall(self, percept):
+
+        if self.facing == 'Up':
+            return percept['wall_left']
+
+        elif self.facing == 'Left':
+            return percept['wall_down']
+
+        elif self.facing == 'Down':
+            return percept['wall_right']
+
+        else:  # Right
+            return percept['wall_up']
+
+    # ------------------------------------------------
+    # CHECK WHETHER RIGHT IS A WALL
+    # ------------------------------------------------
+
+    def is_right_wall(self, percept):
+
+        if self.facing == 'Up':
+            return percept['wall_right']
+
+        elif self.facing == 'Right':
+            return percept['wall_down']
+
+        elif self.facing == 'Down':
+            return percept['wall_left']
+
+        else:  # Left
+            return percept['wall_up']
+
+    # ------------------------------------------------
+    # CHECK WHETHER AHEAD HAS BEEN VISITED
+    # ------------------------------------------------
+
+    def is_ahead_visited(self):
+
+        x, y = self.position
+
+        if self.facing == 'Up':
+            ahead = (x, y + 1)
+
+        elif self.facing == 'Down':
+            ahead = (x, y - 1)
+
+        elif self.facing == 'Left':
+            ahead = (x - 1, y)
+
+        else:  # Right
+            ahead = (x + 1, y)
+
+        return ahead in self.visited_cells
+
+    # ------------------------------------------------
+    # UPDATE INTERNAL STATE
+    # ------------------------------------------------
 
     def update_state(self, action, percept):
 
+        # Turn left
         if action == 'TurnLeft':
 
             if self.facing == 'Up':
@@ -220,6 +239,7 @@ class ModelBasedAgent:
             elif self.facing == 'Right':
                 self.facing = 'Up'
 
+        # Turn right
         elif action == 'TurnRight':
 
             if self.facing == 'Up':
@@ -234,9 +254,10 @@ class ModelBasedAgent:
             elif self.facing == 'Left':
                 self.facing = 'Up'
 
+        # Move forward
         elif action == 'Forward':
 
-            # Do not update internal position if there is a wall
+            # Do not update internal position if wall is ahead
             if percept['wall_ahead']:
                 return
 
