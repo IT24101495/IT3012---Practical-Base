@@ -1,5 +1,7 @@
 
 # agent.py
+
+
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
 
@@ -276,7 +278,7 @@ class ModelBasedAgent:
             elif self.facing == 'Right':
                 self.position = (x + 1, y)
                 
-
+import math
 from collections import deque
 import heapq
 
@@ -287,6 +289,22 @@ class SearchAgent:
         self.active_algo = algorithm  # Default algorithm
         self.last_action = None
 
+    def manhattan_distance(self, pos, goal):
+        x1, y1 = pos
+        x2, y2 = goal
+    
+
+        return abs(x1 - x2) + abs(y1 - y2)
+
+
+    def euclidean_distance(self, pos, goal):
+        x1, y1 = pos
+        x2, y2 = goal
+
+        return math.sqrt(
+            (x1 - x2) ** 2 +
+            (y1 - y2) ** 2
+        )
     # --------------------------------------------------
     # BFS - Breadth First Search
     # FIFO Queue
@@ -450,6 +468,7 @@ class SearchAgent:
         
         return 'Stay'
 
+    
     # --------------------------------------------------
     # Generate valid neighboring states
     # --------------------------------------------------
@@ -487,3 +506,4 @@ class SearchAgent:
             )
 
         return neighbors
+    
