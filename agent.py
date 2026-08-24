@@ -283,7 +283,8 @@ import heapq
 class SearchAgent:
 
     def __init__(self, algorithm="BFS"):
-        self.algorithm = algorithm  # Default algorithm
+        self.plan = []
+        self.active_algo = algorithm  # Default algorithm
         self.last_action = None
 
     # --------------------------------------------------
@@ -398,45 +399,55 @@ class SearchAgent:
 
     def sense_and_act(self, percept):
 
-        start = percept['agent_pos']
-
-        if not percept['all_food']:
-            return 'Stay'
-
-        goal = percept['all_food'][0]
-
-        if self.algorithm == "BFS":
-            path = self.bfs_search(
-                start,
-                goal,
-                percept['walls'],
-                percept['grid_size']
-            )
-
-        elif self.algorithm == "DFS":
-            path = self.dfs_search(
-                start,
-                goal,
-                percept['walls'],
-                percept['grid_size']
-            )
-
-        elif self.algorithm == "UCS":
-            path = self.ucs_search(
-                start,
-                goal,
-                percept['walls'],
-                percept['grid_size']
-            )
-
-        else:
-            return 'Stay'
+        if not self.plan:
         
-        if path:
-            action = path[0]
+            start = percept['agent_pos']
+
+            if not percept['all_food']:
+                return 'Stay'
+
+            goal = min(
+                percept['all_food'],
+                key=lambda food:
+                    abs(food[0] - start[0]) + abs(food[1] - start[1])
+            )
+
+            if self.active_algo == "BFS":
+                path = self.bfs_search(
+                    start,
+                    goal,
+                    percept['walls'],
+                    percept['grid_size']
+                )
+
+            elif self.active_algo == "DFS":
+                path = self.dfs_search(
+                    start,
+                    goal,
+                    percept['walls'],
+                    percept['grid_size']
+                )
+
+
+            elif self.active_algo == "UCS":
+                path = self.ucs_search(
+                    start,
+                    goal,
+                    percept['walls'],
+                    percept['grid_size']
+                )
+
+            else:
+                return 'Stay'
+            
+            if path:
+                self.plan = path
+
+        if self.plan:
+            action = self.plan.pop(0)
             self.last_action = action
             return action
-
+        
         return 'Stay'
 
     # --------------------------------------------------

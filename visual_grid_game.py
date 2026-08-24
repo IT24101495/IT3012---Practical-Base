@@ -89,6 +89,7 @@ class VisualGridHuntGame:
         current_pos = tuple(self.agent_pos)
 
         return {
+            'agent_pos': tuple(self.agent_pos),
             'wall_ahead': wall_ahead,
 
             'wall_up': wall_up,
@@ -193,10 +194,9 @@ class GridGameGUI:
         self.env = VisualGridHuntGame(width=width, height=height, num_food=num_food, num_opponents=num_opponents,
                                       custom_walls=walls)
         
-        self.agent = SearchAgent("UCS")
+        self.agent = SearchAgent("BFS")
         
-        self.search_path = []
-        self.path_index = 0
+      
 
         max_canvas_dim = 600
         self.cell_size = max(20, min(max_canvas_dim // self.env.width, max_canvas_dim // self.env.height))
@@ -259,23 +259,23 @@ class GridGameGUI:
             x1 = tx * self.cell_size + offset
             y1 = (self.env.height - 1 - ty) * self.cell_size + offset
 
-        self.canvas.create_rectangle(
-            x1,
-            y1,
-            x1 + self.cell_size * 0.6,
-            y1 + self.cell_size * 0.6,
-            fill="#dc2626",
-            outline="#991b1b"
-        )
-
-        if self.cell_size >= 40:
-            self.canvas.create_text(
-                x1 + self.cell_size * 0.3,
-                y1 + self.cell_size * 0.3,
-                text="T",
-                fill="white",
-                font=("Arial", 10, "bold")
+            self.canvas.create_rectangle(
+                x1,
+                y1,
+                x1 + self.cell_size * 0.6,
+                y1 + self.cell_size * 0.6,
+                fill="#dc2626",
+                outline="#991b1b"
             )
+
+            if self.cell_size >= 40:
+                self.canvas.create_text(
+                    x1 + self.cell_size * 0.3,
+                    y1 + self.cell_size * 0.3,
+                    text="T",
+                    fill="white",
+                    font=("Arial", 10, "bold")
+                )
 
     def run_loop(self):
         self.btn.config(state="disabled")
@@ -286,48 +286,18 @@ class GridGameGUI:
 
                 percept = self.env.get_percept()
 
-            # Get current position
-                start = tuple(self.env.agent_pos)
+                # Agent decides the next action
+                action = self.agent.sense_and_act(percept)
 
-            # Choose the first remaining food as the goal
-                if percept['all_food']:
-
-                    goal = tuple(percept['all_food'][0])
-
-                # Calculate a new path when needed
-                    if not self.search_path or self.path_index >= len(self.search_path):
-
-                        self.search_path = self.agent.bfs_search(
-                            start,
-                            goal,
-                            percept['walls'],
-                            percept['grid_size']
-                        )
-
-                        self.path_index = 0
-
-                # Execute next action in path
-                    if self.search_path:
-
-                        action = self.search_path[self.path_index]
-                        self.path_index += 1
-
-                    else:
-                        action = 'TurnRight'
-
-                else:
-                    action = 'Stay'
-
+                # Environment executes the action
                 self.env.execute_action(action)
 
                 self.draw_grid()
 
-                percept = self.env.get_percept()
-
                 self.label.config(
                     text=f"Score: {self.env.score} | "
-                         f"Steps: {self.env.steps} | "
-                         f"Algorithm: BFS"
+                        f"Steps: {self.env.steps} | "
+                        f"Algorithm: {self.agent.active_algo}"
                 )
 
                 self.root.after(250, step)
