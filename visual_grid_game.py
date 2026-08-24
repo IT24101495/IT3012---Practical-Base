@@ -1,7 +1,7 @@
 # visual_grid_game.py
 import random
 import tkinter as tk
-from agent import SimpleReflexAgent, ModelBasedAgent
+from agent import SimpleReflexAgent, ModelBasedAgent, SearchAgent
 
 class VisualGridHuntGame:
     """A flexible Pacman-style grid environment with support for configurable opponents and larger scales."""
@@ -193,7 +193,10 @@ class GridGameGUI:
         self.env = VisualGridHuntGame(width=width, height=height, num_food=num_food, num_opponents=num_opponents,
                                       custom_walls=walls)
         
-        self.agent = ModelBasedAgent()
+        self.agent = SearchAgent("UCS")
+        
+        self.search_path = []
+        self.path_index = 0
 
         max_canvas_dim = 600
         self.cell_size = max(20, min(max_canvas_dim // self.env.width, max_canvas_dim // self.env.height))
@@ -250,23 +253,93 @@ class GridGameGUI:
         y1 = (self.env.height - 1 - ay) * self.cell_size + offset
         self.canvas.create_oval(x1, y1, x1 + self.cell_size * 0.7, y1 + self.cell_size * 0.7, fill="#000066",
                                 outline="#1e3a8a")
+        
+        for tx, ty in self.env.toxic_traps:
+            offset = self.cell_size * 0.2
+            x1 = tx * self.cell_size + offset
+            y1 = (self.env.height - 1 - ty) * self.cell_size + offset
+
+        self.canvas.create_rectangle(
+            x1,
+            y1,
+            x1 + self.cell_size * 0.6,
+            y1 + self.cell_size * 0.6,
+            fill="#dc2626",
+            outline="#991b1b"
+        )
+
+        if self.cell_size >= 40:
+            self.canvas.create_text(
+                x1 + self.cell_size * 0.3,
+                y1 + self.cell_size * 0.3,
+                text="T",
+                fill="white",
+                font=("Arial", 10, "bold")
+            )
 
     def run_loop(self):
         self.btn.config(state="disabled")
 
         def step():
+
             if not self.env.is_done():
+
                 percept = self.env.get_percept()
-                action = self.agent.sense_and_act(percept)
+
+            # Get current position
+                start = tuple(self.env.agent_pos)
+
+            # Choose the first remaining food as the goal
+                if percept['all_food']:
+
+                    goal = tuple(percept['all_food'][0])
+
+                # Calculate a new path when needed
+                    if not self.search_path or self.path_index >= len(self.search_path):
+
+                        self.search_path = self.agent.bfs_search(
+                            start,
+                            goal,
+                            percept['walls'],
+                            percept['grid_size']
+                        )
+
+                        self.path_index = 0
+
+                # Execute next action in path
+                    if self.search_path:
+
+                        action = self.search_path[self.path_index]
+                        self.path_index += 1
+
+                    else:
+                        action = 'TurnRight'
+
+                else:
+                    action = 'Stay'
 
                 self.env.execute_action(action)
 
                 self.draw_grid()
+
                 percept = self.env.get_percept()
-                self.label.config(text=f"Score: {self.env.score} | Steps: {self.env.steps} | Wall Ahead: {percept['wall_ahead']}")
+
+                self.label.config(
+                    text=f"Score: {self.env.score} | "
+                         f"Steps: {self.env.steps} | "
+                         f"Algorithm: BFS"
+                )
+
                 self.root.after(250, step)
+
             else:
-                end_text = f"Collision! Game Over! Final Score: {self.env.score}" if self.env.collision else f"Finished! Final Score: {self.env.score}"
+
+                end_text = (
+                    f"Collision! Game Over! Final Score: {self.env.score}"
+                    if self.env.collision
+                    else f"Finished! Final Score: {self.env.score}"
+                )
+
                 self.label.config(text=end_text)
                 self.btn.config(state="normal")
 

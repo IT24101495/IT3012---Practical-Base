@@ -1,3 +1,4 @@
+
 # agent.py
 class GreedyGridAgent:
     """A simple agent that tries to move around systematically to clear the grid."""
@@ -274,3 +275,204 @@ class ModelBasedAgent:
 
             elif self.facing == 'Right':
                 self.position = (x + 1, y)
+                
+
+from collections import deque
+import heapq
+
+class SearchAgent:
+
+    def __init__(self, algorithm="BFS"):
+        self.algorithm = algorithm  # Default algorithm
+        self.last_action = None
+
+    # --------------------------------------------------
+    # BFS - Breadth First Search
+    # FIFO Queue
+    # --------------------------------------------------
+
+    def bfs_search(self, start, goal, walls, grid_size):
+
+        queue = deque()
+        queue.append((start, []))
+
+        reached = {start}
+
+        while queue:
+
+            current, path = queue.popleft()
+
+            if current == goal:
+                return path
+
+            for action, neighbor in self.get_neighbors(
+                current, walls, grid_size
+            ):
+
+                if neighbor not in reached:
+                    reached.add(neighbor)
+
+                    queue.append(
+                        (neighbor, path + [action])
+                    )
+
+        return None
+
+    # --------------------------------------------------
+    # DFS - Depth First Search
+    # LIFO Stack
+    # --------------------------------------------------
+
+    def dfs_search(self, start, goal, walls, grid_size):
+
+        stack = []
+        stack.append((start, []))
+
+        reached = {start}
+
+        while stack:
+
+            current, path = stack.pop()
+
+            if current == goal:
+                return path
+
+            for action, neighbor in self.get_neighbors(
+                current, walls, grid_size
+            ):
+
+                if neighbor not in reached:
+                    reached.add(neighbor)
+
+                    stack.append(
+                        (neighbor, path + [action])
+                    )
+
+        return None
+
+    # --------------------------------------------------
+    # UCS - Uniform Cost Search
+    # Priority Queue
+    # --------------------------------------------------
+
+    def ucs_search(self, start, goal, walls, grid_size):
+
+        priority_queue = []
+
+        # (total_cost, current_position, path)
+        heapq.heappush(
+            priority_queue,
+            (0, start, [])
+        )
+
+        reached = set()
+        reached.add(start)
+
+        while priority_queue:
+
+            cost, current, path = heapq.heappop(priority_queue)
+
+            if current == goal:
+                return path
+
+            for action, neighbor in self.get_neighbors(
+                current, walls, grid_size
+            ):
+
+                if neighbor not in reached:
+
+                    reached.add(neighbor)
+
+                    new_cost = cost + 1
+
+                    heapq.heappush(
+                        priority_queue,
+                        (
+                            new_cost,
+                            neighbor,
+                            path + [action]
+                        )
+                    )
+
+        return None
+
+    def sense_and_act(self, percept):
+
+        start = percept['agent_pos']
+
+        if not percept['all_food']:
+            return 'Stay'
+
+        goal = percept['all_food'][0]
+
+        if self.algorithm == "BFS":
+            path = self.bfs_search(
+                start,
+                goal,
+                percept['walls'],
+                percept['grid_size']
+            )
+
+        elif self.algorithm == "DFS":
+            path = self.dfs_search(
+                start,
+                goal,
+                percept['walls'],
+                percept['grid_size']
+            )
+
+        elif self.algorithm == "UCS":
+            path = self.ucs_search(
+                start,
+                goal,
+                percept['walls'],
+                percept['grid_size']
+            )
+
+        else:
+            return 'Stay'
+        
+        if path:
+            action = path[0]
+            self.last_action = action
+            return action
+
+        return 'Stay'
+
+    # --------------------------------------------------
+    # Generate valid neighboring states
+    # --------------------------------------------------
+
+    def get_neighbors(self, position, walls, grid_size):
+
+        x, y = position
+
+        width, height = grid_size
+
+        neighbors = []
+
+        possible_moves = [
+            ('Up', (x, y + 1)),
+            ('Down', (x, y - 1)),
+            ('Left', (x - 1, y)),
+            ('Right', (x + 1, y))
+        ]
+
+        for action, (nx, ny) in possible_moves:
+
+            # Check boundaries
+            if nx < 0 or nx >= width:
+                continue
+
+            if ny < 0 or ny >= height:
+                continue
+
+            # Check walls
+            if (nx, ny) in walls:
+                continue
+
+            neighbors.append(
+                (action, (nx, ny))
+            )
+
+        return neighbors
