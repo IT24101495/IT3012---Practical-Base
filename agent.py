@@ -415,6 +415,62 @@ class SearchAgent:
 
         return None
 
+  
+
+    def astar_search(self, start_pos, goal_pos, walls, grid_size,
+                     heuristic_type='manhattan'):
+
+        if heuristic_type == 'euclidean':
+            heuristic = self.euclidean_distance
+        else:
+            heuristic = self.manhattan_distance
+
+        priority_queue = []
+        reached_states = set()
+
+        
+        g_start = 0
+        h_start = heuristic(start_pos, goal_pos)
+        f_start = g_start + h_start
+
+        
+        heapq.heappush(
+            priority_queue,
+            (f_start, g_start, start_pos, [])
+        )
+
+        while priority_queue:
+
+            f_cost, g_cost, current_pos, path_taken = heapq.heappop(
+                priority_queue
+            )
+
+            if current_pos == goal_pos:
+                return path_taken
+
+            if current_pos in reached_states:
+                continue
+
+            reached_states.add(current_pos)
+
+            for action, neighbor in self.get_neighbors(
+                current_pos, walls, grid_size
+            ):
+
+                if neighbor in reached_states:
+                    continue
+
+                g_new = g_cost + 1
+                h_new = heuristic(neighbor, goal_pos)
+                f_new = g_new + h_new
+
+                heapq.heappush(
+                    priority_queue,
+                    (f_new, g_new, neighbor, path_taken + [action])
+                )
+
+        return None
+
     def sense_and_act(self, percept):
 
         if not self.plan:
