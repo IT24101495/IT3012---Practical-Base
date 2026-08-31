@@ -511,6 +511,31 @@ class SearchAgent:
                     percept['grid_size']
                 )
 
+            elif self.active_algo == "AStar":
+
+                # Extract global state from the percept
+                remaining_food = percept.get(
+                    'remaining_food', percept['all_food']
+                )
+
+                if not remaining_food:
+                    return 'Stay'
+
+                # Find the closest food item to act as the goal
+                goal_pos = min(
+                    remaining_food,
+                    key=lambda food:
+                        self.manhattan_distance(start, food)
+                )
+
+                path = self.astar_search(
+                    start,
+                    goal_pos,
+                    percept['walls'],
+                    percept['grid_size'],
+                    heuristic_type='manhattan'
+                )
+
             else:
                 return 'Stay'
             

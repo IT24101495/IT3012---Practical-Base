@@ -194,7 +194,7 @@ class GridGameGUI:
         self.env = VisualGridHuntGame(width=width, height=height, num_food=num_food, num_opponents=num_opponents,
                                       custom_walls=walls)
         
-        self.agent = SearchAgent("BFS")
+        self.agent = SearchAgent("AStar")
         
       
 
